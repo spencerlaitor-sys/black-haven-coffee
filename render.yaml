@@ -1,5 +1,9 @@
 services:
   - type: web
-    name: black-haven
+    name: black-haven-coffee
     env: static
     staticPublishPath: .
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
