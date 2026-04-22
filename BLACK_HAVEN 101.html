@@ -1,0 +1,851 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Black Haven — Tea & Coffee</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=Cinzel:wght@400;500;600&family=Jost:wght@300;400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --forest: #1a3a2a; --forest-deep: #0d2218; --forest-mid: #224d38; --forest-light: #2e6b4a;
+    --gold: #c9973a; --gold-light: #e2b45c; --gold-pale: #f5e6c8;
+    --cream: #f7f2e9; --cream-warm: #ede4d3; --white: #ffffff;
+    --text-dark: #1a1a18; --text-mid: #3d3c38;
+  }
+  html { scroll-behavior: smooth; }
+  body { font-family: 'Jost', sans-serif; background: var(--cream); color: var(--text-dark); overflow-x: hidden; }
+
+  /* ── TOAST ── */
+  .toast {
+    position: fixed; bottom: 2rem; right: 2rem; z-index: 9999;
+    background: var(--forest-deep); color: var(--gold-light);
+    border: 1px solid rgba(201,151,58,0.3);
+    padding: 1rem 1.8rem; font-family: 'Jost', sans-serif;
+    font-size: 0.82rem; letter-spacing: 0.05em;
+    display: flex; align-items: center; gap: 0.8rem;
+    transform: translateY(100px); opacity: 0;
+    transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    max-width: 360px;
+  }
+  .toast.show { transform: translateY(0); opacity: 1; }
+  .toast.error { border-color: rgba(220,60,60,0.4); color: #ff8080; }
+  .toast-icon { font-size: 1rem; flex-shrink: 0; }
+
+  /* ── NAV ── */
+  nav {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 1.5rem 4rem;
+    background: transparent; transition: background 0.5s, padding 0.4s;
+  }
+  nav.scrolled { background: rgba(13,34,24,0.96); backdrop-filter: blur(12px); padding: 1rem 4rem; }
+  .nav-logo {
+    font-family: 'Cinzel', serif; font-size: 1.1rem;
+    letter-spacing: 0.22em; color: var(--white); text-decoration: none;
+    display: flex; flex-direction: column; line-height: 1.1;
+  }
+  .nav-logo span { color: var(--gold-light); font-size: 0.6rem; letter-spacing: 0.35em; margin-top: 2px; }
+  .nav-links { display: flex; gap: 2.5rem; list-style: none; }
+  .nav-links a {
+    font-size: 0.72rem; font-weight: 400; letter-spacing: 0.2em;
+    text-transform: uppercase; color: rgba(255,255,255,0.75); text-decoration: none; transition: color 0.3s;
+  }
+  .nav-links a:hover { color: var(--gold-light); }
+  .nav-cta {
+    font-size: 0.7rem; letter-spacing: 0.18em; text-transform: uppercase;
+    color: var(--gold); border: 1px solid var(--gold); padding: 0.55rem 1.5rem;
+    text-decoration: none; transition: all 0.3s; cursor: pointer; background: none;
+  }
+  .nav-cta:hover { background: var(--gold); color: var(--forest-deep); }
+
+  /* ── HERO ── */
+  .hero {
+    position: relative; height: 100vh; min-height: 700px;
+    display: flex; align-items: center; justify-content: center; overflow: hidden;
+  }
+  .hero-bg { position: absolute; inset: 0; background: radial-gradient(ellipse at 30% 50%, #1e4a30 0%, #0d2218 55%, #060f0b 100%); }
+  .hero-texture {
+    position: absolute; inset: 0;
+    background-image: repeating-linear-gradient(0deg,transparent,transparent 60px,rgba(201,151,58,0.025) 60px,rgba(201,151,58,0.025) 61px),
+      repeating-linear-gradient(90deg,transparent,transparent 60px,rgba(201,151,58,0.025) 60px,rgba(201,151,58,0.025) 61px);
+  }
+  .hero-circle {
+    position: absolute; border-radius: 50%; border: 1px solid rgba(201,151,58,0.12);
+    animation: pulse-ring 6s ease-in-out infinite;
+  }
+  .hero-circle:nth-child(1) { width:500px;height:500px;top:50%;left:50%;transform:translate(-50%,-50%); }
+  .hero-circle:nth-child(2) { width:700px;height:700px;top:50%;left:50%;transform:translate(-50%,-50%);animation-delay:1.5s; }
+  .hero-circle:nth-child(3) { width:900px;height:900px;top:50%;left:50%;transform:translate(-50%,-50%);animation-delay:3s; }
+  @keyframes pulse-ring { 0%,100%{opacity:0.3}50%{opacity:0.7} }
+  .hero-leaf { position:absolute;width:3px;height:3px;background:var(--gold);border-radius:50%;animation:float-particle 8s ease-in-out infinite; }
+  @keyframes float-particle { 0%,100%{transform:translateY(0) rotate(0deg);opacity:0} 20%{opacity:0.6} 80%{opacity:0.3} 100%{transform:translateY(-120px) rotate(180deg);opacity:0} }
+  .hero-content { position:relative;z-index:2;text-align:center;animation:hero-reveal 1.4s cubic-bezier(0.25,0.46,0.45,0.94) both; }
+  @keyframes hero-reveal { from{opacity:0;transform:translateY(40px)} to{opacity:1;transform:translateY(0)} }
+  .hero-eyebrow {
+    font-size: 0.68rem; font-weight: 300; letter-spacing: 0.45em; text-transform: uppercase;
+    color: var(--gold); margin-bottom: 1.8rem; display: flex; align-items: center; justify-content: center; gap: 1rem;
+  }
+  .hero-eyebrow::before,.hero-eyebrow::after { content:'';display:block;width:40px;height:1px;background:var(--gold);opacity:0.5; }
+  .hero-title { font-family:'Cinzel',serif;font-size:clamp(3.5rem,8vw,7rem);font-weight:500;color:var(--white);line-height:0.9;letter-spacing:0.05em;margin-bottom:0.2rem; }
+  .hero-title .haven { color:var(--gold-light);display:block; }
+  .hero-subtitle { font-size:0.72rem;letter-spacing:0.4em;color:rgba(255,255,255,0.4);text-transform:uppercase;margin:1.8rem 0 3.5rem; }
+  .hero-diamond { color:var(--gold);margin:0 0.5rem; }
+  .hero-btns { display:flex;gap:1.2rem;justify-content:center; }
+  .btn-primary { font-family:'Jost',sans-serif;font-size:0.72rem;letter-spacing:0.22em;text-transform:uppercase;background:var(--gold);color:var(--forest-deep);padding:1rem 2.8rem;border:none;cursor:pointer;font-weight:500;text-decoration:none;transition:all 0.35s;display:inline-block; }
+  .btn-primary:hover { background:var(--gold-light);letter-spacing:0.28em; }
+  .btn-primary:disabled { opacity:0.6;cursor:not-allowed; }
+  .btn-ghost { font-family:'Jost',sans-serif;font-size:0.72rem;letter-spacing:0.22em;text-transform:uppercase;background:transparent;color:rgba(255,255,255,0.7);padding:1rem 2.8rem;border:1px solid rgba(255,255,255,0.25);cursor:pointer;text-decoration:none;transition:all 0.35s;display:inline-block; }
+  .btn-ghost:hover { border-color:var(--gold);color:var(--gold); }
+  .hero-scroll { position:absolute;bottom:2.5rem;left:50%;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:0.5rem;color:rgba(255,255,255,0.3);font-size:0.6rem;letter-spacing:0.3em;text-transform:uppercase;animation:scroll-bounce 2.5s ease-in-out infinite; }
+  .hero-scroll::after { content:'';width:1px;height:40px;background:linear-gradient(to bottom,rgba(201,151,58,0.5),transparent); }
+  @keyframes scroll-bounce { 0%,100%{transform:translateX(-50%) translateY(0)} 50%{transform:translateX(-50%) translateY(6px)} }
+
+  /* ── ORNAMENT ── */
+  .ornament-divider { display:flex;align-items:center;justify-content:center;gap:1rem;margin:0 auto;padding:0 2rem;max-width:300px; }
+  .ornament-divider::before,.ornament-divider::after { content:'';flex:1;height:1px;background:var(--gold);opacity:0.35; }
+  .ornament-diamond { width:7px;height:7px;background:var(--gold);transform:rotate(45deg);flex-shrink:0; }
+
+  /* ── INTRO ── */
+  .intro { background:var(--forest-deep);padding:7rem 4rem;text-align:center;position:relative;overflow:hidden; }
+  .intro::before { content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--gold),transparent); }
+  .intro::after { content:'';position:absolute;bottom:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--gold),transparent); }
+  .intro-label { font-size:0.65rem;letter-spacing:0.4em;text-transform:uppercase;color:var(--gold);margin-bottom:1.5rem; }
+  .intro-quote { font-family:'Cormorant Garamond',serif;font-size:clamp(2rem,3.5vw,3.2rem);font-weight:300;font-style:italic;color:var(--white);line-height:1.4;max-width:750px;margin:0 auto 2rem; }
+  .intro-quote em { color:var(--gold-light);font-style:normal; }
+  .intro-text { font-size:0.88rem;font-weight:300;line-height:1.9;color:rgba(255,255,255,0.5);max-width:500px;margin:2rem auto 0;letter-spacing:0.03em; }
+
+  /* ── SECTION COMMON ── */
+  .section-label { font-size:0.65rem;letter-spacing:0.45em;text-transform:uppercase;color:var(--gold);text-align:center;margin-bottom:0.8rem; }
+  .section-title { font-family:'Cinzel',serif;font-size:clamp(2rem,4vw,3.2rem);font-weight:400;color:var(--forest-deep);text-align:center;margin-bottom:1rem;letter-spacing:0.04em; }
+  .section-title.light { color:var(--white); }
+  .section-desc { font-size:0.88rem;font-weight:300;line-height:1.9;color:#7a7060;text-align:center;max-width:500px;margin:0 auto 4rem; }
+  .section-desc.light { color:rgba(255,255,255,0.45); }
+
+  /* ── COLLECTIONS ── */
+  .collections { padding:7rem 4rem;background:var(--cream); }
+  .collection-grid { display:grid;grid-template-columns:repeat(3,1fr);gap:2px;max-width:1200px;margin:0 auto; }
+  .collection-card { position:relative;overflow:hidden;cursor:pointer;aspect-ratio:3/4; }
+  .collection-card:first-child { grid-row:span 2;aspect-ratio:auto; }
+  .card-bg { position:absolute;inset:0;transition:transform 0.7s cubic-bezier(0.25,0.46,0.45,0.94); }
+  .collection-card:hover .card-bg { transform:scale(1.06); }
+  .card-bg-1{background:linear-gradient(160deg,#1a3a2a 0%,#0d2218 100%)} .card-bg-2{background:linear-gradient(160deg,#3d2a1a 0%,#241507 100%)} .card-bg-3{background:linear-gradient(160deg,#1a2030 0%,#0a1020 100%)} .card-bg-4{background:linear-gradient(160deg,#2a1a2e 0%,#160d1e 100%)} .card-bg-5{background:linear-gradient(160deg,#1a3025 0%,#0a1e15 100%)}
+  .card-pattern { position:absolute;inset:0;opacity:0.08;background-image:repeating-linear-gradient(45deg,var(--gold) 0,var(--gold) 1px,transparent 0,transparent 50%);background-size:8px 8px; }
+  .card-icon { position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:4rem;opacity:0.08;transition:opacity 0.4s; }
+  .collection-card:hover .card-icon { opacity:0.04; }
+  .card-content { position:absolute;inset:0;display:flex;flex-direction:column;justify-content:flex-end;padding:2rem;background:linear-gradient(to top,rgba(5,15,10,0.9) 0%,transparent 60%); }
+  .card-tag { font-size:0.6rem;letter-spacing:0.3em;text-transform:uppercase;color:var(--gold);margin-bottom:0.5rem; }
+  .card-name { font-family:'Cinzel',serif;font-size:1.2rem;color:var(--white);font-weight:400;margin-bottom:0.5rem;letter-spacing:0.05em; }
+  .collection-card:first-child .card-name { font-size:1.8rem; }
+  .card-desc { font-size:0.78rem;color:rgba(255,255,255,0.45);font-weight:300;line-height:1.6;max-width:260px; }
+  .card-arrow { position:absolute;top:1.5rem;right:1.5rem;width:36px;height:36px;border:1px solid rgba(201,151,58,0.3);display:flex;align-items:center;justify-content:center;color:var(--gold);font-size:1rem;transform:rotate(-45deg);transition:all 0.3s;opacity:0; }
+  .collection-card:hover .card-arrow { opacity:1;transform:rotate(0deg); }
+
+  /* ── PROCESS ── */
+  .process { background:var(--forest-deep);padding:7rem 4rem;position:relative;overflow:hidden; }
+  .process::before { content:'RITUAL';position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-family:'Cinzel',serif;font-size:20vw;font-weight:600;color:rgba(255,255,255,0.015);white-space:nowrap;pointer-events:none;letter-spacing:0.1em; }
+  .process-grid { display:grid;grid-template-columns:repeat(4,1fr);gap:0;max-width:1100px;margin:0 auto;position:relative; }
+  .process-grid::before { content:'';position:absolute;top:2rem;left:12.5%;right:12.5%;height:1px;background:rgba(201,151,58,0.2); }
+  .process-step { padding:0 2rem;text-align:center;opacity:0;transform:translateY(30px);transition:opacity 0.7s ease,transform 0.7s ease; }
+  .process-step.visible { opacity:1;transform:translateY(0); }
+  .process-step:nth-child(2){transition-delay:0.15s} .process-step:nth-child(3){transition-delay:0.3s} .process-step:nth-child(4){transition-delay:0.45s}
+  .step-number { font-family:'Cinzel',serif;font-size:0.75rem;color:var(--gold);letter-spacing:0.3em;margin-bottom:2rem;display:flex;align-items:center;justify-content:center;gap:0.5rem; }
+  .step-dot { width:8px;height:8px;background:var(--gold);border-radius:50%;flex-shrink:0; }
+  .step-title { font-family:'Cormorant Garamond',serif;font-size:1.4rem;font-weight:400;color:var(--white);margin-bottom:1rem;line-height:1.2; }
+  .step-text { font-size:0.78rem;font-weight:300;color:rgba(255,255,255,0.4);line-height:1.85; }
+
+  /* ── SIGNATURE ── */
+  .signature { padding:7rem 4rem;background:var(--cream);position:relative; }
+  .sig-inner { max-width:1100px;margin:0 auto;display:grid;grid-template-columns:1fr 1fr;gap:6rem;align-items:center; }
+  .sig-visual { position:relative;aspect-ratio:4/5;background:var(--forest);overflow:hidden; }
+  .sig-visual::before { content:'';position:absolute;inset:16px;border:1px solid rgba(201,151,58,0.2);pointer-events:none;z-index:2; }
+  .sig-inner-visual { position:absolute;inset:0;background:radial-gradient(ellipse at 40% 40%,#2e6b4a 0%,#0d2218 70%); }
+  .sig-pattern { position:absolute;inset:0;background-image:radial-gradient(circle at 30% 30%,rgba(201,151,58,0.08) 0%,transparent 60%),radial-gradient(circle at 70% 70%,rgba(201,151,58,0.05) 0%,transparent 50%); }
+  .sig-cup-icon { position:absolute;bottom:2rem;right:2rem;font-size:8rem;opacity:0.06; }
+  .sig-badge { position:absolute;bottom:-1.5rem;right:-1.5rem;width:120px;height:120px;background:var(--gold);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:3; }
+  .sig-badge-text { font-family:'Cinzel',serif;font-size:0.6rem;letter-spacing:0.2em;color:var(--forest-deep);text-align:center;line-height:1.5; }
+  .sig-badge-num { font-family:'Cinzel',serif;font-size:1.6rem;font-weight:600;color:var(--forest-deep);line-height:1; }
+  .sig-text .section-title,.sig-text .section-label { text-align:left; }
+  .sig-text .section-desc { text-align:left;margin:0 0 2rem; }
+  .sig-features { display:flex;flex-direction:column;gap:1.2rem;margin-bottom:2.5rem; }
+  .sig-feature { display:flex;gap:1rem;align-items:flex-start; }
+  .feature-line { width:24px;height:1px;background:var(--gold);margin-top:0.6rem;flex-shrink:0; }
+  .feature-text { font-size:0.85rem;color:var(--text-mid);font-weight:300;line-height:1.6; }
+  .feature-text strong { font-weight:500;color:var(--forest-deep); }
+
+  /* ── MENU ── */
+  .menu-tease { background:var(--forest);padding:7rem 4rem;position:relative;overflow:hidden; }
+  .menu-scroll-track { display:flex;gap:1.5rem;overflow-x:auto;padding-bottom:1.5rem;scrollbar-width:none;max-width:1200px;margin:0 auto;cursor:grab; }
+  .menu-scroll-track::-webkit-scrollbar { display:none; }
+  .menu-item-card { flex-shrink:0;width:260px;background:rgba(255,255,255,0.04);border:1px solid rgba(201,151,58,0.15);padding:2rem 1.8rem;position:relative;transition:background 0.3s,border-color 0.3s; }
+  .menu-item-card:hover { background:rgba(255,255,255,0.07);border-color:rgba(201,151,58,0.4); }
+  .menu-item-type { font-size:0.6rem;letter-spacing:0.3em;color:var(--gold);text-transform:uppercase;margin-bottom:1rem; }
+  .menu-item-name { font-family:'Cormorant Garamond',serif;font-size:1.5rem;color:var(--white);font-weight:400;margin-bottom:0.7rem;line-height:1.2; }
+  .menu-item-desc { font-size:0.78rem;color:rgba(255,255,255,0.4);font-weight:300;line-height:1.7;margin-bottom:1.5rem; }
+  .menu-item-price { font-family:'Cinzel',serif;font-size:1rem;color:var(--gold-light);letter-spacing:0.05em; }
+  .menu-item-origin { position:absolute;top:1.5rem;right:1.5rem;font-size:0.55rem;color:rgba(255,255,255,0.25);letter-spacing:0.15em;text-transform:uppercase; }
+  .menu-item-btn { margin-top:1.2rem;width:100%;padding:0.6rem;background:rgba(201,151,58,0.08);border:1px solid rgba(201,151,58,0.2);color:var(--gold);font-family:'Jost',sans-serif;font-size:0.65rem;letter-spacing:0.2em;text-transform:uppercase;cursor:pointer;transition:all 0.25s; }
+  .menu-item-btn:hover { background:rgba(201,151,58,0.15); }
+
+  /* ── CART DRAWER ── */
+  .cart-overlay { position:fixed;inset:0;z-index:500;background:rgba(5,15,10,0.7);opacity:0;pointer-events:none;transition:opacity 0.3s; }
+  .cart-overlay.open { opacity:1;pointer-events:all; }
+  .cart-drawer { position:fixed;top:0;right:0;bottom:0;width:420px;z-index:501;background:var(--forest-deep);border-left:1px solid rgba(201,151,58,0.15);transform:translateX(100%);transition:transform 0.4s cubic-bezier(0.25,0.46,0.45,0.94);display:flex;flex-direction:column; }
+  .cart-drawer.open { transform:translateX(0); }
+  .cart-header { padding:2rem;border-bottom:1px solid rgba(201,151,58,0.1);display:flex;justify-content:space-between;align-items:center; }
+  .cart-title { font-family:'Cinzel',serif;font-size:1rem;letter-spacing:0.15em;color:var(--white); }
+  .cart-close { background:none;border:1px solid rgba(255,255,255,0.1);color:rgba(255,255,255,0.5);width:32px;height:32px;cursor:pointer;font-size:0.9rem;transition:all 0.2s; }
+  .cart-close:hover { border-color:var(--gold);color:var(--gold); }
+  .cart-items { flex:1;overflow-y:auto;padding:1.5rem 2rem; }
+  .cart-empty { text-align:center;padding:3rem 0;color:rgba(255,255,255,0.3);font-size:0.85rem; }
+  .cart-item { display:flex;gap:1rem;align-items:flex-start;padding:1rem 0;border-bottom:1px solid rgba(255,255,255,0.05); }
+  .cart-item-info { flex:1; }
+  .cart-item-name { font-family:'Cormorant Garamond',serif;font-size:1.05rem;color:var(--white); }
+  .cart-item-meta { font-size:0.68rem;color:rgba(255,255,255,0.35);letter-spacing:0.1em;margin-top:2px; }
+  .cart-item-qty { display:flex;align-items:center;gap:0.5rem;margin-top:0.5rem; }
+  .qty-btn { width:22px;height:22px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);color:var(--gold);cursor:pointer;font-size:0.8rem;display:flex;align-items:center;justify-content:center;transition:all 0.2s; }
+  .qty-btn:hover { background:rgba(201,151,58,0.1); }
+  .qty-num { font-family:'Cinzel',serif;font-size:0.85rem;color:var(--white);min-width:20px;text-align:center; }
+  .cart-item-price { font-family:'Cinzel',serif;font-size:0.9rem;color:var(--gold-light); }
+  .cart-footer { padding:2rem;border-top:1px solid rgba(201,151,58,0.1); }
+  .cart-total-row { display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem; }
+  .cart-total-label { font-size:0.72rem;letter-spacing:0.2em;text-transform:uppercase;color:rgba(255,255,255,0.4); }
+  .cart-total-val { font-family:'Cinzel',serif;font-size:1.4rem;color:var(--gold-light); }
+  .cart-checkout-btn { width:100%;padding:1rem;background:var(--gold);color:var(--forest-deep);border:none;cursor:pointer;font-family:'Jost',sans-serif;font-size:0.75rem;letter-spacing:0.25em;text-transform:uppercase;font-weight:500;transition:all 0.3s; }
+  .cart-checkout-btn:hover { background:var(--gold-light); }
+  .cart-badge { position:absolute;top:-6px;right:-6px;width:18px;height:18px;background:var(--gold);border-radius:50%;font-size:0.65rem;font-weight:700;color:var(--forest-deep);display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity 0.3s; }
+  .cart-badge.visible { opacity:1; }
+  .cart-trigger { position:relative;display:inline-block; }
+
+  /* ── TESTIMONIALS ── */
+  .testimonials { padding:7rem 4rem;background:var(--cream-warm);position:relative;text-align:center; }
+  .testimonials-grid { display:grid;grid-template-columns:repeat(3,1fr);gap:2rem;max-width:1100px;margin:4rem auto 0; }
+  .testimonial-card { background:var(--white);padding:2.5rem 2rem;position:relative;border-left:2px solid var(--gold); }
+  .testimonial-stars { color:var(--gold);font-size:0.7rem;letter-spacing:0.2em;margin-bottom:1.2rem; }
+  .testimonial-text { font-family:'Cormorant Garamond',serif;font-size:1.15rem;font-style:italic;color:var(--text-mid);line-height:1.7;margin-bottom:1.5rem;font-weight:400; }
+  .testimonial-author { font-size:0.72rem;font-weight:500;letter-spacing:0.15em;text-transform:uppercase;color:var(--forest-deep); }
+  .testimonial-role { font-size:0.65rem;color:#999;margin-top:0.2rem;letter-spacing:0.1em; }
+
+  /* ── RESERVATION MODAL ── */
+  .modal-overlay { position:fixed;inset:0;z-index:600;background:rgba(5,15,10,0.85);backdrop-filter:blur(8px);opacity:0;pointer-events:none;transition:opacity 0.3s;display:flex;align-items:center;justify-content:center;padding:2rem; }
+  .modal-overlay.open { opacity:1;pointer-events:all; }
+  .modal { background:var(--forest-deep);border:1px solid rgba(201,151,58,0.2);max-width:540px;width:100%;max-height:90vh;overflow-y:auto;transform:translateY(30px);transition:transform 0.35s;position:relative; }
+  .modal-overlay.open .modal { transform:translateY(0); }
+  .modal::before { content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--gold),transparent); }
+  .modal-header { padding:2.5rem 2.5rem 1.5rem;border-bottom:1px solid rgba(201,151,58,0.1); }
+  .modal-title { font-family:'Cinzel',serif;font-size:1.4rem;letter-spacing:0.1em;color:var(--white);margin-bottom:0.3rem; }
+  .modal-sub { font-size:0.75rem;color:rgba(255,255,255,0.35);letter-spacing:0.1em; }
+  .modal-close-btn { position:absolute;top:1.5rem;right:1.5rem;background:none;border:1px solid rgba(255,255,255,0.1);color:rgba(255,255,255,0.4);width:30px;height:30px;cursor:pointer;font-size:0.8rem;transition:all 0.2s;display:flex;align-items:center;justify-content:center; }
+  .modal-close-btn:hover { border-color:var(--gold);color:var(--gold); }
+  .modal-body { padding:2rem 2.5rem 2.5rem; }
+  .form-row { display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem; }
+  .form-group { display:flex;flex-direction:column;gap:0.4rem;margin-bottom:1rem; }
+  .form-label { font-size:0.65rem;letter-spacing:0.25em;text-transform:uppercase;color:rgba(255,255,255,0.45); }
+  .form-input,.form-select,.form-textarea {
+    background:rgba(255,255,255,0.05);border:1px solid rgba(201,151,58,0.15);color:var(--white);
+    padding:0.75rem 1rem;font-family:'Jost',sans-serif;font-size:0.85rem;outline:none;
+    transition:border-color 0.25s;width:100%;
+  }
+  .form-input::placeholder { color:rgba(255,255,255,0.2); }
+  .form-input:focus,.form-select:focus,.form-textarea:focus { border-color:rgba(201,151,58,0.5); }
+  .form-select { -webkit-appearance:none;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath fill='%23c9973a' d='M0 0l5 6 5-6z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 1rem center;cursor:pointer; }
+  .form-select option { background:var(--forest-deep);color:var(--white); }
+  .form-textarea { resize:vertical;min-height:80px; }
+  .form-submit { width:100%;padding:1rem;background:var(--gold);color:var(--forest-deep);border:none;cursor:pointer;font-family:'Jost',sans-serif;font-size:0.78rem;letter-spacing:0.25em;text-transform:uppercase;font-weight:500;transition:all 0.3s;margin-top:0.5rem; }
+  .form-submit:hover:not(:disabled) { background:var(--gold-light); }
+  .form-submit:disabled { opacity:0.6;cursor:not-allowed; }
+
+  /* ── CHECKOUT MODAL ── */
+  .checkout-modal { max-width:600px; }
+  .checkout-order-summary { background:rgba(255,255,255,0.03);border:1px solid rgba(201,151,58,0.1);padding:1.2rem;margin-bottom:1.5rem; }
+  .checkout-item-row { display:flex;justify-content:space-between;padding:0.4rem 0;font-size:0.82rem;color:rgba(255,255,255,0.5); }
+  .checkout-total-row { display:flex;justify-content:space-between;padding-top:0.8rem;margin-top:0.5rem;border-top:1px solid rgba(201,151,58,0.15); }
+  .checkout-total-label { font-size:0.72rem;letter-spacing:0.15em;text-transform:uppercase;color:rgba(255,255,255,0.5); }
+  .checkout-total-val { font-family:'Cinzel',serif;font-size:1.1rem;color:var(--gold-light); }
+
+  /* ── EXPERIENCE ── */
+  .experience { padding:0;background:var(--forest-deep);position:relative;overflow:hidden;min-height:500px;display:grid;grid-template-columns:1fr 1fr; }
+  .exp-visual { position:relative;overflow:hidden;background:radial-gradient(ellipse at 60% 40%,#1e5c3a 0%,#0a1e13 100%);min-height:460px;display:flex;align-items:center;justify-content:center; }
+  .exp-leaves { font-size:18rem;opacity:0.04;user-select:none; }
+  .exp-content { padding:6rem 5rem;display:flex;flex-direction:column;justify-content:center; }
+  .exp-content .section-title,.exp-content .section-label { text-align:left; }
+  .exp-highlight { font-family:'Cormorant Garamond',serif;font-size:1.1rem;font-style:italic;color:rgba(255,255,255,0.45);line-height:1.7;margin-bottom:2.5rem; }
+  .hours-grid { display:grid;grid-template-columns:1fr 1fr;gap:0;border-top:1px solid rgba(201,151,58,0.15);margin-bottom:2.5rem; }
+  .hour-item { padding:1rem 0;border-bottom:1px solid rgba(201,151,58,0.1); }
+  .hour-day { font-size:0.7rem;letter-spacing:0.2em;text-transform:uppercase;color:rgba(255,255,255,0.35);margin-bottom:0.2rem; }
+  .hour-time { font-family:'Cormorant Garamond',serif;font-size:1.1rem;color:var(--gold-light); }
+
+  /* ── NEWSLETTER ── */
+  .newsletter { background:var(--cream);padding:6rem 4rem;text-align:center;border-top:1px solid rgba(26,58,42,0.08); }
+  .newsletter .section-title { font-size:2.2rem;margin-bottom:0.8rem; }
+  .nl-desc { font-size:0.85rem;font-weight:300;color:#9a8f7e;margin-bottom:2.5rem;letter-spacing:0.03em; }
+  .nl-form { display:flex;max-width:460px;margin:0 auto;gap:0;border:1px solid rgba(26,58,42,0.2); }
+  .nl-input { flex:1;padding:1rem 1.5rem;border:none;background:var(--white);font-family:'Jost',sans-serif;font-size:0.82rem;color:var(--text-dark);outline:none;letter-spacing:0.05em; }
+  .nl-btn { padding:1rem 1.8rem;background:var(--forest);color:var(--gold-light);border:none;cursor:pointer;font-family:'Jost',sans-serif;font-size:0.68rem;letter-spacing:0.22em;text-transform:uppercase;transition:background 0.3s; }
+  .nl-btn:hover { background:var(--forest-light); }
+  .nl-btn:disabled { opacity:0.6;cursor:not-allowed; }
+
+  /* ── FOOTER ── */
+  footer { background:var(--forest-deep);padding:5rem 4rem 3rem;position:relative; }
+  footer::before { content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--gold),transparent);opacity:0.4; }
+  .footer-grid { display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:4rem;max-width:1100px;margin:0 auto 4rem; }
+  .footer-brand-name { font-family:'Cinzel',serif;font-size:1.5rem;color:var(--white);letter-spacing:0.1em;margin-bottom:0.3rem; }
+  .footer-brand-sub { font-size:0.65rem;letter-spacing:0.35em;color:var(--gold);text-transform:uppercase;margin-bottom:1.2rem; }
+  .footer-brand-desc { font-size:0.8rem;color:rgba(255,255,255,0.3);font-weight:300;line-height:1.8;max-width:240px; }
+  .footer-col-title { font-family:'Cinzel',serif;font-size:0.75rem;letter-spacing:0.2em;color:var(--gold);margin-bottom:1.5rem;text-transform:uppercase; }
+  .footer-links { list-style:none;display:flex;flex-direction:column;gap:0.8rem; }
+  .footer-links a { font-size:0.8rem;color:rgba(255,255,255,0.35);text-decoration:none;font-weight:300;transition:color 0.25s;letter-spacing:0.05em;cursor:pointer; }
+  .footer-links a:hover { color:var(--gold-light); }
+  .footer-bottom { max-width:1100px;margin:0 auto;padding-top:2rem;border-top:1px solid rgba(255,255,255,0.06);display:flex;justify-content:space-between;align-items:center; }
+  .footer-copy { font-size:0.7rem;color:rgba(255,255,255,0.2);letter-spacing:0.1em; }
+  .footer-social { display:flex;gap:1rem; }
+  .social-link { width:32px;height:32px;border:1px solid rgba(255,255,255,0.1);display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,0.35);font-size:0.75rem;text-decoration:none;transition:all 0.3s; }
+  .social-link:hover { border-color:var(--gold);color:var(--gold); }
+
+  /* ── ANIMATIONS ── */
+  .fade-up { opacity:0;transform:translateY(40px);transition:opacity 0.8s ease,transform 0.8s ease; }
+  .fade-up.visible { opacity:1;transform:translateY(0); }
+  .fade-up:nth-child(2){transition-delay:0.1s} .fade-up:nth-child(3){transition-delay:0.2s}
+
+  @media(max-width:1024px){
+    .collection-grid{grid-template-columns:1fr 1fr}
+    .collection-card:first-child{grid-column:span 2;grid-row:span 1;aspect-ratio:16/7}
+    .process-grid{grid-template-columns:1fr 1fr;gap:3rem}
+    .process-grid::before{display:none}
+    .sig-inner{grid-template-columns:1fr;gap:3rem}
+    .sig-visual{aspect-ratio:16/9}
+    .testimonials-grid{grid-template-columns:1fr 1fr}
+    .testimonials-grid .testimonial-card:last-child{display:none}
+    .experience{grid-template-columns:1fr}
+    .exp-visual{min-height:280px}
+    .footer-grid{grid-template-columns:1fr 1fr;gap:2.5rem}
+    nav{padding:1.2rem 2rem}
+    nav.scrolled{padding:0.8rem 2rem}
+    .nav-links{display:none}
+    .cart-drawer{width:100%;max-width:100%}
+  }
+  @media(max-width:600px){
+    .hero-title{font-size:3rem}
+    .hero-btns{flex-direction:column;align-items:center}
+    .collections,.process,.signature,.menu-tease,.testimonials,.experience,.newsletter{padding:5rem 1.5rem}
+    .collection-grid{grid-template-columns:1fr}
+    .collection-card:first-child{grid-column:span 1;grid-row:span 1;aspect-ratio:4/3}
+    .process-grid{grid-template-columns:1fr}
+    .testimonials-grid{grid-template-columns:1fr}
+    .testimonials-grid .testimonial-card:last-child{display:block}
+    .footer-grid{grid-template-columns:1fr}
+    .exp-content{padding:3rem 1.5rem}
+    .form-row{grid-template-columns:1fr}
+    .modal{margin:1rem}
+  }
+</style>
+</head>
+<body>
+
+<!-- TOAST -->
+<div class="toast" id="toast">
+  <span class="toast-icon" id="toastIcon">✓</span>
+  <span id="toastMsg">Done!</span>
+</div>
+
+<!-- CART OVERLAY + DRAWER -->
+<div class="cart-overlay" id="cartOverlay" onclick="closeCart()"></div>
+<div class="cart-drawer" id="cartDrawer">
+  <div class="cart-header">
+    <span class="cart-title">Your Order</span>
+    <button class="cart-close" onclick="closeCart()">✕</button>
+  </div>
+  <div class="cart-items" id="cartItems"><p class="cart-empty">Your cart is empty</p></div>
+  <div class="cart-footer">
+    <div class="cart-total-row">
+      <span class="cart-total-label">Total</span>
+      <span class="cart-total-val" id="cartTotal">KES 0</span>
+    </div>
+    <button class="cart-checkout-btn" onclick="openCheckoutModal()" id="checkoutBtn">Proceed to Checkout →</button>
+  </div>
+</div>
+
+<!-- RESERVATION MODAL -->
+<div class="modal-overlay" id="resModalOverlay">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Reserve a Table</div>
+      <div class="modal-sub">◆ Black Haven · Westlands, Nairobi</div>
+      <button class="modal-close-btn" onclick="closeResModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Full Name</label>
+          <input class="form-input" id="res_name" type="text" placeholder="Your name">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Phone Number</label>
+          <input class="form-input" id="res_phone" type="tel" placeholder="+254 7XX XXX XXX">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Email Address</label>
+        <input class="form-input" id="res_email" type="email" placeholder="your@email.com">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Date</label>
+          <input class="form-input" id="res_date" type="date">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Time</label>
+          <select class="form-select" id="res_time">
+            <option value="">Select time</option>
+            <option>07:00 AM</option><option>08:00 AM</option><option>09:00 AM</option>
+            <option>10:00 AM</option><option>11:00 AM</option><option>12:00 PM</option>
+            <option>01:00 PM</option><option>02:00 PM</option><option>03:00 PM</option>
+            <option>04:00 PM</option><option>05:00 PM</option><option>06:00 PM</option>
+            <option>07:00 PM</option><option>08:00 PM</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Guests</label>
+          <select class="form-select" id="res_guests">
+            <option value="1">1 guest</option><option value="2" selected>2 guests</option>
+            <option value="3">3 guests</option><option value="4">4 guests</option>
+            <option value="5">5 guests</option><option value="6+">6+ guests</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Location</label>
+          <select class="form-select" id="res_location">
+            <option>Westlands, Nairobi</option>
+            <option>Eldoret City</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Special Requests</label>
+        <textarea class="form-textarea" id="res_notes" placeholder="Dietary requirements, celebrations, preferences…"></textarea>
+      </div>
+      <button class="form-submit" id="resSubmitBtn" onclick="submitReservation()">Confirm Reservation →</button>
+    </div>
+  </div>
+</div>
+
+<!-- CHECKOUT MODAL -->
+<div class="modal-overlay" id="checkoutOverlay">
+  <div class="modal checkout-modal">
+    <div class="modal-header">
+      <div class="modal-title">Complete Your Order</div>
+      <div class="modal-sub">◆ Black Haven Delivery & Pickup</div>
+      <button class="modal-close-btn" onclick="closeCheckoutModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="checkout-order-summary" id="checkoutSummary"></div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Full Name</label>
+          <input class="form-input" id="ord_name" type="text" placeholder="Your name">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Phone</label>
+          <input class="form-input" id="ord_phone" type="tel" placeholder="+254 7XX XXX XXX">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Email</label>
+        <input class="form-input" id="ord_email" type="email" placeholder="your@email.com">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Order Type</label>
+        <select class="form-select" id="ord_type">
+          <option value="pickup">Pickup — Westlands, Nairobi</option>
+          <option value="pickup_eldoret">Pickup — Eldoret City</option>
+          <option value="delivery">Delivery (Nairobi)</option>
+        </select>
+      </div>
+      <div class="form-group" id="addressGroup" style="display:none">
+        <label class="form-label">Delivery Address</label>
+        <input class="form-input" id="ord_address" type="text" placeholder="Full delivery address">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Notes</label>
+        <textarea class="form-textarea" id="ord_notes" placeholder="Special instructions, allergens, customisations…"></textarea>
+      </div>
+      <button class="form-submit" id="ordSubmitBtn" onclick="submitOrder()">Place Order →</button>
+    </div>
+  </div>
+</div>
+
+<!-- NAV -->
+<nav id="main-nav">
+  <a href="#" class="nav-logo">BLACK HAVEN<span>◆ Tea & Coffee ◆</span></a>
+  <ul class="nav-links">
+    <li><a href="#collections">Collections</a></li>
+    <li><a href="#menu">Menu</a></li>
+    <li><a href="#our-craft">Our Craft</a></li>
+    <li><a href="#visit">Visit</a></li>
+  </ul>
+  <div style="display:flex;gap:1rem;align-items:center">
+    <div class="cart-trigger" onclick="openCart()" style="cursor:pointer">
+      <span style="color:rgba(255,255,255,0.7);font-size:0.72rem;letter-spacing:0.18em;text-transform:uppercase;padding:0.55rem 0;">🛒 Cart</span>
+      <span class="cart-badge" id="cartBadge">0</span>
+    </div>
+    <button class="nav-cta" onclick="openResModal()">Reserve a Table</button>
+  </div>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-bg"></div><div class="hero-texture"></div>
+  <div class="hero-circle"></div><div class="hero-circle"></div><div class="hero-circle"></div>
+  <div class="hero-leaf" style="left:20%;top:60%;animation-delay:0s;animation-duration:7s"></div>
+  <div class="hero-leaf" style="left:35%;top:70%;animation-delay:1.2s;animation-duration:9s"></div>
+  <div class="hero-leaf" style="left:55%;top:65%;animation-delay:2.5s;animation-duration:6s"></div>
+  <div class="hero-leaf" style="left:70%;top:72%;animation-delay:0.8s;animation-duration:8s"></div>
+  <div class="hero-leaf" style="left:80%;top:58%;animation-delay:3s;animation-duration:7.5s"></div>
+  <div class="hero-leaf" style="left:12%;top:50%;animation-delay:1.8s;animation-duration:10s"></div>
+  <div class="hero-content">
+    <div class="hero-eyebrow">Premium Tea & Coffee</div>
+    <h1 class="hero-title">BLACK<span class="haven">HAVEN</span></h1>
+    <p class="hero-subtitle"><span class="hero-diamond">◆</span>Est. 2019 · Nairobi & Eldoret<span class="hero-diamond">◆</span></p>
+    <div class="hero-btns">
+      <a href="#collections" class="btn-primary">Explore Collections</a>
+      <a href="#menu" class="btn-ghost">Order Now</a>
+    </div>
+  </div>
+  <div class="hero-scroll">Scroll</div>
+</section>
+
+<!-- INTRO -->
+<section class="intro">
+  <p class="intro-label">A Philosophy of Taste</p>
+  <blockquote class="intro-quote">"Every cup is a conversation between<br><em>leaf and water</em>,<br>origin and craft."</blockquote>
+  <div class="ornament-divider"><div class="ornament-diamond"></div></div>
+  <p class="intro-text">Black Haven was born from a single obsession — to source and serve the world's most extraordinary teas and coffees, prepared with the precision of a craft and the warmth of a haven.</p>
+</section>
+
+<!-- COLLECTIONS -->
+<section class="collections" id="collections">
+  <p class="section-label fade-up">Our Signature Ranges</p>
+  <h2 class="section-title fade-up">Curated Collections</h2>
+  <p class="section-desc fade-up">From mist-covered highland estates to volcanic equatorial soils — every origin tells a story worth tasting.</p>
+  <div class="collection-grid">
+    <div class="collection-card"><div class="card-bg card-bg-1"></div><div class="card-pattern"></div><div class="card-icon">🌿</div><div class="card-content"><span class="card-tag">Featured Collection</span><h3 class="card-name">The Highlands Reserve</h3><p class="card-desc">Single-estate teas from the world's highest altitude gardens. Unparalleled clarity and depth.</p></div><div class="card-arrow">→</div></div>
+    <div class="collection-card"><div class="card-bg card-bg-2"></div><div class="card-pattern"></div><div class="card-icon">☕</div><div class="card-content"><span class="card-tag">Coffee</span><h3 class="card-name">Dark Ritual Espresso</h3><p class="card-desc">Deep, complex blends crafted for those who demand the extraordinary in every shot.</p></div><div class="card-arrow">→</div></div>
+    <div class="collection-card"><div class="card-bg card-bg-3"></div><div class="card-pattern"></div><div class="card-icon">🫖</div><div class="card-content"><span class="card-tag">Tea</span><h3 class="card-name">White Mist Series</h3><p class="card-desc">Rare white teas harvested at dawn from mist-covered Fujian gardens.</p></div><div class="card-arrow">→</div></div>
+    <div class="collection-card"><div class="card-bg card-bg-4"></div><div class="card-pattern"></div><div class="card-icon">🌸</div><div class="card-content"><span class="card-tag">Blends</span><h3 class="card-name">Botanica Florals</h3><p class="card-desc">Artisan floral infusions that transform the ritual of tea into pure sensory poetry.</p></div><div class="card-arrow">→</div></div>
+    <div class="collection-card"><div class="card-bg card-bg-5"></div><div class="card-pattern"></div><div class="card-icon">⚡</div><div class="card-content"><span class="card-tag">Single Origin</span><h3 class="card-name">Rift Valley Black</h3><p class="card-desc">Kenya's finest high-grown CTC and orthodox teas, full-bodied and magnificent.</p></div><div class="card-arrow">→</div></div>
+  </div>
+</section>
+
+<!-- OUR CRAFT -->
+<section class="process" id="our-craft">
+  <p class="section-label fade-up" style="text-align:center">The Black Haven Method</p>
+  <h2 class="section-title light fade-up" style="text-align:center;margin-bottom:1rem">A Ritual in Four Acts</h2>
+  <p class="section-desc light fade-up">We believe extraordinary flavour is never accidental.</p>
+  <div class="process-grid">
+    <div class="process-step"><div class="step-number"><div class="step-dot"></div>01</div><h3 class="step-title">Origin Selection</h3><p class="step-text">We travel personally to partner farms across Kenya, India, China, and Ethiopia — building direct relationships and tasting hundreds of lots before selecting the finest.</p></div>
+    <div class="process-step"><div class="step-number"><div class="step-dot"></div>02</div><h3 class="step-title">Artisan Processing</h3><p class="step-text">Whether sun-dried, stone-milled, or slow-roasted, every lot undergoes meticulous processing designed to preserve and enhance its truest character.</p></div>
+    <div class="process-step"><div class="step-number"><div class="step-dot"></div>03</div><h3 class="step-title">Master Blending</h3><p class="step-text">Our master blenders compose each collection to achieve balance, complexity, and a signature finish that defines the Black Haven signature.</p></div>
+    <div class="process-step"><div class="step-number"><div class="step-dot"></div>04</div><h3 class="step-title">The Perfect Cup</h3><p class="step-text">Our trained brewers guide every preparation — water temperature, brew time, vessel — so that what reaches you is precisely what we intended.</p></div>
+  </div>
+</section>
+
+<!-- SIGNATURE -->
+<section class="signature">
+  <div class="sig-inner">
+    <div class="sig-visual"><div class="sig-inner-visual"></div><div class="sig-pattern"></div><div class="sig-cup-icon">🍃</div><div class="sig-badge"><span class="sig-badge-num">100%</span><span class="sig-badge-text">SINGLE<br>ESTATE</span></div></div>
+    <div class="sig-text">
+      <p class="section-label">Why Black Haven</p>
+      <h2 class="section-title">Beyond the<br>Ordinary Cup</h2>
+      <p class="section-desc">We do not compete on convenience. We compete on character — and we believe that distinction is felt in the very first sip.</p>
+      <div class="sig-features">
+        <div class="sig-feature"><div class="feature-line"></div><p class="feature-text"><strong>Direct Trade Sourcing</strong> — every leaf and bean arrives from personally visited, verified estates with full traceability.</p></div>
+        <div class="sig-feature"><div class="feature-line"></div><p class="feature-text"><strong>Small-Batch Precision</strong> — we roast and blend in limited quantities to preserve peak freshness and quality consistency.</p></div>
+        <div class="sig-feature"><div class="feature-line"></div><p class="feature-text"><strong>Expert Guidance</strong> — our brewers are trained to recommend, prepare, and perfect every cup to match your palate.</p></div>
+      </div>
+      <a href="#menu" class="btn-primary" style="display:inline-block">Discover the Menu</a>
+    </div>
+  </div>
+</section>
+
+<!-- MENU -->
+<section class="menu-tease" id="menu">
+  <p class="section-label" style="text-align:center">Seasonal Offerings</p>
+  <h2 class="section-title light" style="text-align:center;margin-bottom:0.5rem">The Black Haven Menu</h2>
+  <p class="section-desc light">Drag to explore · Add to cart · Pickup or delivery available</p>
+  <div class="menu-scroll-track" id="menuTrack">
+    <div class="menu-item-card"><span class="menu-item-origin">Kenya AA</span><div class="menu-item-type">Espresso</div><h3 class="menu-item-name">Rift Valley Dark</h3><p class="menu-item-desc">Bold, velvety crema. Notes of dark chocolate, dried fruit, and cedar with a long, warming finish.</p><div class="menu-item-price">KES 480</div><button class="menu-item-btn" onclick="addToCart('Rift Valley Dark','Espresso',480)">Add to Order +</button></div>
+    <div class="menu-item-card"><span class="menu-item-origin">Darjeeling, India</span><div class="menu-item-type">Black Tea</div><h3 class="menu-item-name">First Flush Darjeeling</h3><p class="menu-item-desc">Champagne of teas. Delicate, muscatel character with spring blossom notes and luminous amber liquor.</p><div class="menu-item-price">KES 420</div><button class="menu-item-btn" onclick="addToCart('First Flush Darjeeling','Black Tea',420)">Add to Order +</button></div>
+    <div class="menu-item-card"><span class="menu-item-origin">Ethiopia, Yirgacheffe</span><div class="menu-item-type">Pour Over</div><h3 class="menu-item-name">Yirgacheffe Honey</h3><p class="menu-item-desc">Honey-processed. Jasmine, bergamot, and stone fruit woven into a lusciously smooth body.</p><div class="menu-item-price">KES 550</div><button class="menu-item-btn" onclick="addToCart('Yirgacheffe Honey','Pour Over',550)">Add to Order +</button></div>
+    <div class="menu-item-card"><span class="menu-item-origin">Fujian, China</span><div class="menu-item-type">White Tea</div><h3 class="menu-item-name">Silver Needle</h3><p class="menu-item-desc">Hand-picked buds. The most delicate of teas — gossamer, sweet, and impossibly refined.</p><div class="menu-item-price">KES 650</div><button class="menu-item-btn" onclick="addToCart('Silver Needle','White Tea',650)">Add to Order +</button></div>
+    <div class="menu-item-card"><span class="menu-item-origin">Japan, Uji</span><div class="menu-item-type">Specialty</div><h3 class="menu-item-name">Ceremonial Matcha</h3><p class="menu-item-desc">Stone-ground shade-grown tencha. Vivid emerald, umami-rich, and powerfully calm.</p><div class="menu-item-price">KES 720</div><button class="menu-item-btn" onclick="addToCart('Ceremonial Matcha','Specialty',720)">Add to Order +</button></div>
+    <div class="menu-item-card"><span class="menu-item-origin">Colombia, Huila</span><div class="menu-item-type">Cold Brew</div><h3 class="menu-item-name">Haven Cold Brew</h3><p class="menu-item-desc">18-hour slow extraction. Silky, low-acid, and incredibly refreshing. Caramel and red apple notes.</p><div class="menu-item-price">KES 580</div><button class="menu-item-btn" onclick="addToCart('Haven Cold Brew','Cold Brew',580)">Add to Order +</button></div>
+    <div class="menu-item-card"><span class="menu-item-origin">Black Haven Blend</span><div class="menu-item-type">Signature</div><h3 class="menu-item-name">The Haven Blend</h3><p class="menu-item-desc">Our house signature. A proprietary blend that has defined Black Haven since day one.</p><div class="menu-item-price">KES 500</div><button class="menu-item-btn" onclick="addToCart('The Haven Blend','Signature',500)">Add to Order +</button></div>
+  </div>
+</section>
+
+<!-- TESTIMONIALS -->
+<section class="testimonials">
+  <p class="section-label fade-up">Voices of Our Guests</p>
+  <h2 class="section-title fade-up">What They're Saying</h2>
+  <div class="testimonials-grid">
+    <div class="testimonial-card fade-up"><div class="testimonial-stars">★ ★ ★ ★ ★</div><p class="testimonial-text">"Black Haven has ruined me for ordinary coffee. The Yirgacheffe pour-over is unlike anything I've experienced in Nairobi — possibly anywhere."</p><div class="testimonial-author">Amara Osei</div><div class="testimonial-role">Creative Director, Nairobi</div></div>
+    <div class="testimonial-card fade-up"><div class="testimonial-stars">★ ★ ★ ★ ★</div><p class="testimonial-text">"The First Flush Darjeeling made me understand what tea truly can be. The atmosphere, the service, the knowledge of the staff — all extraordinary."</p><div class="testimonial-author">Priya Mehta</div><div class="testimonial-role">Sommelier & Tea Educator</div></div>
+    <div class="testimonial-card fade-up"><div class="testimonial-stars">★ ★ ★ ★ ★</div><p class="testimonial-text">"My Saturday ritual. The space is contemplative, the cups are impeccable. Black Haven is one of Nairobi's true hidden gems — though not for much longer."</p><div class="testimonial-author">James Kamau</div><div class="testimonial-role">Architect & Collector</div></div>
+  </div>
+</section>
+
+<!-- EXPERIENCE / VISIT -->
+<section class="experience" id="visit">
+  <div class="exp-visual"><div class="exp-leaves">🌿</div></div>
+  <div class="exp-content">
+    <p class="section-label">Find Your Haven</p>
+    <h2 class="section-title light" style="margin-bottom:1.5rem">Visit Us</h2>
+    <p class="exp-highlight">A sanctuary from the city's pace.<br>Where time slows and flavour speaks.</p>
+    <div class="hours-grid">
+      <div class="hour-item"><div class="hour-day">Mon — Fri</div><div class="hour-time">7:00 am — 9:00 pm</div></div>
+      <div class="hour-item"><div class="hour-day">Saturday</div><div class="hour-time">8:00 am — 10:00 pm</div></div>
+      <div class="hour-item"><div class="hour-day">Sunday</div><div class="hour-time">9:00 am — 8:00 pm</div></div>
+      <div class="hour-item"><div class="hour-day">Locations</div><div class="hour-time" style="font-size:0.85rem">Westlands, Nairobi<br>Eldoret City</div></div>
+    </div>
+    <button class="btn-primary" onclick="openResModal()">Reserve a Table</button>
+  </div>
+</section>
+
+<!-- NEWSLETTER -->
+<section class="newsletter">
+  <p class="section-label">Stay in the Circle</p>
+  <h2 class="section-title">The Black Haven Journal</h2>
+  <p class="nl-desc">Seasonal arrivals, tasting notes, brewing guides and private events — delivered to those who truly care.</p>
+  <div class="nl-form">
+    <input type="email" class="nl-input" id="nl_email" placeholder="Your email address">
+    <button class="nl-btn" id="nlBtn" onclick="subscribeNewsletter()">Subscribe</button>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="footer-grid">
+    <div><div class="footer-brand-name">BLACK HAVEN</div><div class="footer-brand-sub">◆ Tea & Coffee ◆</div><p class="footer-brand-desc">A sanctuary for those who seek the finest in every cup. Premium tea and coffee, sourced with intention, prepared with precision.</p></div>
+    <div><div class="footer-col-title">Explore</div><ul class="footer-links"><li><a href="#collections">Our Collections</a></li><li><a href="#menu">The Menu</a></li><li><a href="#our-craft">Our Craft</a></li><li><a href="#visit">Visit Us</a></li></ul></div>
+    <div><div class="footer-col-title">Order</div><ul class="footer-links"><li><a href="#menu">Order Online</a></li><li><a href="#" onclick="openResModal();return false;">Reserve a Table</a></li><li><a href="#">Corporate Gifting</a></li><li><a href="#">Wholesale</a></li></ul></div>
+    <div><div class="footer-col-title">Contact</div><ul class="footer-links"><li><a>Westlands, Nairobi</a></li><li><a>Eldoret City</a></li><li><a>hello@blackhaven.co.ke</a></li><li><a>+254 700 000 000</a></li></ul></div>
+  </div>
+  <div class="footer-bottom">
+    <span class="footer-copy">© 2025 Black Haven Tea & Coffee. All rights reserved.</span>
+    <div class="footer-social">
+      <a href="#" class="social-link">ig</a><a href="#" class="social-link">fb</a><a href="#" class="social-link">tw</a><a href="#" class="social-link">yt</a>
+    </div>
+  </div>
+</footer>
+
+<script>
+// ── SUPABASE INIT ──
+const SUPABASE_URL = 'https://lruvghvsljiziuwszqhh.supabase.co';
+const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY'; // Replace with your actual anon key
+const { createClient } = supabase;
+const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+// ── TOAST ──
+let toastTimer;
+function showToast(msg, isError = false) {
+  const t = document.getElementById('toast');
+  const m = document.getElementById('toastMsg');
+  const i = document.getElementById('toastIcon');
+  clearTimeout(toastTimer);
+  m.textContent = msg;
+  i.textContent = isError ? '!' : '✓';
+  t.className = 'toast' + (isError ? ' error' : '');
+  setTimeout(() => t.classList.add('show'), 10);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 4000);
+}
+
+// ── CART STATE ──
+let cart = [];
+function addToCart(name, type, price) {
+  const existing = cart.find(i => i.name === name);
+  if (existing) { existing.qty++; }
+  else { cart.push({ name, type, price, qty: 1 }); }
+  updateCartUI();
+  openCart();
+  showToast(`${name} added to your order`);
+}
+function changeQty(name, delta) {
+  const item = cart.find(i => i.name === name);
+  if (!item) return;
+  item.qty += delta;
+  if (item.qty <= 0) cart = cart.filter(i => i.name !== name);
+  updateCartUI();
+}
+function updateCartUI() {
+  const total = cart.reduce((s, i) => s + i.price * i.qty, 0);
+  const count = cart.reduce((s, i) => s + i.qty, 0);
+  const badge = document.getElementById('cartBadge');
+  badge.textContent = count;
+  badge.classList.toggle('visible', count > 0);
+  document.getElementById('cartTotal').textContent = `KES ${total.toLocaleString()}`;
+  const itemsEl = document.getElementById('cartItems');
+  if (cart.length === 0) { itemsEl.innerHTML = '<p class="cart-empty">Your cart is empty</p>'; return; }
+  itemsEl.innerHTML = cart.map(i => `
+    <div class="cart-item">
+      <div class="cart-item-info">
+        <div class="cart-item-name">${i.name}</div>
+        <div class="cart-item-meta">${i.type}</div>
+        <div class="cart-item-qty">
+          <button class="qty-btn" onclick="changeQty('${i.name}',-1)">−</button>
+          <span class="qty-num">${i.qty}</span>
+          <button class="qty-btn" onclick="changeQty('${i.name}',1)">+</button>
+        </div>
+      </div>
+      <div class="cart-item-price">KES ${(i.price*i.qty).toLocaleString()}</div>
+    </div>`).join('');
+}
+function openCart() {
+  document.getElementById('cartOverlay').classList.add('open');
+  document.getElementById('cartDrawer').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+function closeCart() {
+  document.getElementById('cartOverlay').classList.remove('open');
+  document.getElementById('cartDrawer').classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+// ── RESERVATION MODAL ──
+function openResModal() {
+  document.getElementById('resModalOverlay').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+function closeResModal() {
+  document.getElementById('resModalOverlay').classList.remove('open');
+  document.body.style.overflow = '';
+}
+document.getElementById('resModalOverlay').addEventListener('click', e => {
+  if (e.target === document.getElementById('resModalOverlay')) closeResModal();
+});
+
+async function submitReservation() {
+  const name = document.getElementById('res_name').value.trim();
+  const phone = document.getElementById('res_phone').value.trim();
+  const email = document.getElementById('res_email').value.trim();
+  const date = document.getElementById('res_date').value;
+  const time = document.getElementById('res_time').value;
+  const guests = document.getElementById('res_guests').value;
+  const location = document.getElementById('res_location').value;
+  const notes = document.getElementById('res_notes').value.trim();
+  if (!name || !email || !date || !time) { showToast('Please fill in all required fields', true); return; }
+  const btn = document.getElementById('resSubmitBtn');
+  btn.disabled = true; btn.textContent = 'Reserving…';
+  try {
+    const { error } = await sb.from('reservations').insert([{
+      name, phone, email, date, time, guests, location, notes,
+      created_at: new Date().toISOString(), status: 'pending'
+    }]);
+    if (error) throw error;
+    closeResModal();
+    showToast(`Reservation confirmed for ${name} on ${date} at ${time}`);
+    ['res_name','res_phone','res_email','res_date','res_notes'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('res_time').value = '';
+  } catch (err) {
+    console.error(err);
+    showToast('Could not confirm reservation — please call us directly', true);
+  } finally { btn.disabled = false; btn.textContent = 'Confirm Reservation →'; }
+}
+
+// ── CHECKOUT / ORDER ──
+function openCheckoutModal() {
+  if (cart.length === 0) { showToast('Your cart is empty', true); return; }
+  closeCart();
+  const total = cart.reduce((s,i) => s+i.price*i.qty, 0);
+  const summary = document.getElementById('checkoutSummary');
+  summary.innerHTML = cart.map(i => `
+    <div class="checkout-item-row"><span>${i.name} × ${i.qty}</span><span>KES ${(i.price*i.qty).toLocaleString()}</span></div>`).join('') +
+    `<div class="checkout-total-row"><span class="checkout-total-label">Order Total</span><span class="checkout-total-val">KES ${total.toLocaleString()}</span></div>`;
+  document.getElementById('checkoutOverlay').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+function closeCheckoutModal() {
+  document.getElementById('checkoutOverlay').classList.remove('open');
+  document.body.style.overflow = '';
+}
+document.getElementById('checkoutOverlay').addEventListener('click', e => {
+  if (e.target === document.getElementById('checkoutOverlay')) closeCheckoutModal();
+});
+document.getElementById('ord_type').addEventListener('change', function() {
+  document.getElementById('addressGroup').style.display = this.value === 'delivery' ? 'flex' : 'none';
+});
+
+async function submitOrder() {
+  const name = document.getElementById('ord_name').value.trim();
+  const phone = document.getElementById('ord_phone').value.trim();
+  const email = document.getElementById('ord_email').value.trim();
+  const type = document.getElementById('ord_type').value;
+  const address = document.getElementById('ord_address').value.trim();
+  const notes = document.getElementById('ord_notes').value.trim();
+  if (!name || !email) { showToast('Please fill in your name and email', true); return; }
+  if (type === 'delivery' && !address) { showToast('Please enter your delivery address', true); return; }
+  const btn = document.getElementById('ordSubmitBtn');
+  btn.disabled = true; btn.textContent = 'Placing Order…';
+  const total = cart.reduce((s,i) => s+i.price*i.qty, 0);
+  try {
+    const { error } = await sb.from('orders').insert([{
+      customer_name: name, phone, email,
+      order_type: type, delivery_address: address, notes,
+      items: JSON.stringify(cart), total_kes: total,
+      created_at: new Date().toISOString(), status: 'received'
+    }]);
+    if (error) throw error;
+    closeCheckoutModal();
+    cart = [];
+    updateCartUI();
+    showToast(`Order placed! We'll confirm with ${email} shortly ◆`);
+  } catch (err) {
+    console.error(err);
+    showToast('Order failed — please call us to place your order', true);
+  } finally { btn.disabled = false; btn.textContent = 'Place Order →'; }
+}
+
+// ── NEWSLETTER ──
+async function subscribeNewsletter() {
+  const email = document.getElementById('nl_email').value.trim();
+  if (!email || !email.includes('@')) { showToast('Please enter a valid email', true); return; }
+  const btn = document.getElementById('nlBtn');
+  btn.disabled = true; btn.textContent = '…';
+  try {
+    const { error } = await sb.from('newsletter_subscribers').insert([{
+      email, subscribed_at: new Date().toISOString(), source: 'website'
+    }]);
+    if (error && error.code === '23505') { showToast('You are already subscribed ◆'); return; }
+    if (error) throw error;
+    showToast('Welcome to the Black Haven Journal ◆');
+    document.getElementById('nl_email').value = '';
+  } catch (err) {
+    console.error(err);
+    showToast('Subscription failed — please try again', true);
+  } finally { btn.disabled = false; btn.textContent = 'Subscribe'; }
+}
+
+// ── NAV SCROLL ──
+const nav = document.getElementById('main-nav');
+window.addEventListener('scroll', () => nav.classList.toggle('scrolled', window.scrollY > 60));
+
+// ── FADE UP OBSERVER ──
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('visible'); });
+}, { threshold: 0.15 });
+document.querySelectorAll('.fade-up, .process-step').forEach(el => observer.observe(el));
+
+// ── MENU DRAG SCROLL ──
+const track = document.getElementById('menuTrack');
+let isDragging = false, startX, scrollLeft;
+track.addEventListener('mousedown', e => { isDragging=true; track.style.cursor='grabbing'; startX=e.pageX-track.offsetLeft; scrollLeft=track.scrollLeft; });
+track.addEventListener('mousemove', e => { if (!isDragging) return; track.scrollLeft = scrollLeft - (e.pageX-track.offsetLeft-startX)*1.2; });
+['mouseup','mouseleave'].forEach(ev => track.addEventListener(ev, () => { isDragging=false; track.style.cursor='grab'; }));
+
+// ── SET MIN DATE FOR RESERVATION ──
+document.getElementById('res_date').min = new Date().toISOString().split('T')[0];
+</script>
+</body>
+</html>
